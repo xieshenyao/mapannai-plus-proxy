@@ -1,6 +1,7 @@
 import { MapProvider, MapProviderConfig, MapSearchResult, MapCoordinates } from '@/types/map-provider'
 import { config } from '@/lib/config'
 import { gcj02ToWgs84 } from '@/lib/coord-transform'
+import googleJsonRequest from '@/lib/google-json-request'
 
 /**
  * Google 服务器端地图提供者
@@ -81,13 +82,11 @@ export class GoogleServerProvider implements MapProvider {
                 region: country || 'CN'
             })
             
-            const response = await fetch(`${baseUrl}?${params}`)
-            
-            if (!response.ok) {
-                throw new Error(`Google Places API 请求失败: ${response.status}`)
+            const { status, data } = await googleJsonRequest.getJsonWithProxy<any>(`${baseUrl}?${params}`)
+
+            if (status !== 200) {
+                throw new Error(`Google Places API 请求失败: ${status}`)
             }
-            
-            const data = await response.json()
             
             if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
                 throw new Error(`Google Places API 错误: ${data.status} - ${data.error_message || 'Unknown error'}`)

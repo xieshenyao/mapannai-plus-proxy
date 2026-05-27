@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { config } from '@/lib/config'
 import { decode } from '@googlemaps/polyline-codec'
+import googleJsonRequest from '@/lib/google-json-request'
 
 export const dynamic = 'force-dynamic';
 
@@ -36,13 +37,11 @@ export async function POST(request: NextRequest) {
             key: apiKey
         })
 
-        const response = await fetch(`${baseUrl}?${params}`)
-        
-        if (!response.ok) {
-            throw new Error(`Google Directions API 请求失败: ${response.status}`)
-        }
+        const { status, data } = await googleJsonRequest.getJsonWithProxy<any>(`${baseUrl}?${params}`)
 
-        const data = await response.json()
+        if (status !== 200) {
+            throw new Error(`Google Directions API 请求失败: ${status}`)
+        }
         
         if (data.status !== 'OK') {
             throw new Error(`Google Directions API 错误: ${data.status} - ${data.error_message || 'Unknown error'}`)

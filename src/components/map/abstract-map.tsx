@@ -34,9 +34,12 @@ export const AbstractMap = () => {
     const [dataLoaded, setDataLoaded] = useState(false)
 
     // 动态构造地图样式：
-    // 默认使用反向代理路径（origin/osm-tiles/），NEXT_PUBLIC_OSM_TILE_PROXY=false 时使用官方 OSM
+    // 开发环境默认直连官方 OSM，生产环境默认使用同源反向代理路径
     const mapStyle = useMemo(() => {
-        const useProxy = process.env.NEXT_PUBLIC_OSM_TILE_PROXY !== 'false'
+        const proxySetting = process.env.NEXT_PUBLIC_OSM_TILE_PROXY
+        const useProxy = proxySetting
+            ? proxySetting !== 'false'
+            : process.env.NODE_ENV === 'production'
         const origin = typeof window !== 'undefined' ? window.location.origin : ''
         const tileUrl = useProxy
             ? `${origin}/osm-tiles/{z}/{x}/{y}.png`

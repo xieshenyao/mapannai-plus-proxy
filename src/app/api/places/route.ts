@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { config } from '@/lib/config'
 import { wgs84ToGcj02 } from '@/lib/coord-transform'
+import googleJsonRequest from '@/lib/google-json-request'
 
 export const dynamic = 'force-dynamic';
 
@@ -40,13 +41,11 @@ export async function POST(request: NextRequest) {
             language: 'zh-CN'
         })
 
-        const reverseGeocodeResponse = await fetch(`${reverseGeocodeUrl}?${reverseGeocodeParams}`)
-        
-        if (!reverseGeocodeResponse.ok) {
-            throw new Error(`Google Reverse Geocoding API 请求失败: ${reverseGeocodeResponse.status}`)
-        }
+        const { status: reverseGeocodeStatus, data: reverseGeocodeData } = await googleJsonRequest.getJsonWithProxy<any>(`${reverseGeocodeUrl}?${reverseGeocodeParams}`)
 
-        const reverseGeocodeData = await reverseGeocodeResponse.json()
+        if (reverseGeocodeStatus !== 200) {
+            throw new Error(`Google Reverse Geocoding API 请求失败: ${reverseGeocodeStatus}`)
+        }
         
         if (reverseGeocodeData.status !== 'OK') {
             throw new Error(`Google Reverse Geocoding API 错误: ${reverseGeocodeData.status} - ${reverseGeocodeData.error_message || 'Unknown error'}`)
@@ -82,24 +81,20 @@ export async function POST(request: NextRequest) {
                     fields: 'name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,price_level,opening_hours,types'
                 })
 
-                const placeDetailsResponse = await fetch(`${placeDetailsUrl}?${placeDetailsParams}`)
-                
-                if (placeDetailsResponse.ok) {
-                    const placeDetailsData = await placeDetailsResponse.json()
-                    
-                    if (placeDetailsData.status === 'OK' && placeDetailsData.result) {
-                        const result = placeDetailsData.result
-                        detailedInfo = {
-                            name: result.name || address,
-                            address: result.formatted_address || address,
-                            phone: result.formatted_phone_number,
-                            website: result.website,
-                            rating: result.rating,
-                            user_ratings_total: result.user_ratings_total,
-                            price_level: result.price_level,
-                            opening_hours: result.opening_hours,
-                            types: result.types
-                        }
+                const { status: placeDetailsStatus, data: placeDetailsData } = await googleJsonRequest.getJsonWithProxy<any>(`${placeDetailsUrl}?${placeDetailsParams}`)
+
+                if (placeDetailsStatus === 200 && placeDetailsData.status === 'OK' && placeDetailsData.result) {
+                    const result = placeDetailsData.result
+                    detailedInfo = {
+                        name: result.name || address,
+                        address: result.formatted_address || address,
+                        phone: result.formatted_phone_number,
+                        website: result.website,
+                        rating: result.rating,
+                        user_ratings_total: result.user_ratings_total,
+                        price_level: result.price_level,
+                        opening_hours: result.opening_hours,
+                        types: result.types
                     }
                 }
             } catch (error) {

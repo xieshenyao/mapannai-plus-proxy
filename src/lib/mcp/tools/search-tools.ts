@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { mapProviderFactory } from '@/lib/map/providers'
 import { config } from '@/lib/config'
 import { decode } from '@googlemaps/polyline-codec'
+import googleJsonRequest from '@/lib/google-json-request'
 
 export function registerSearchTools(server: McpServer) {
   // search_places
@@ -59,10 +60,8 @@ export function registerSearchTools(server: McpServer) {
         key: apiKey,
         language: 'zh-CN',
       })
-      const geocodeRes = await fetch(`${baseUrl}/maps/api/geocode/json?${geocodeParams}`)
-      if (!geocodeRes.ok) throw new Error(`Reverse Geocoding 请求失败: ${geocodeRes.status}`)
-
-      const geocodeData = await geocodeRes.json()
+      const { status: geocodeStatus, data: geocodeData } = await googleJsonRequest.getJsonWithProxy<any>(`${baseUrl}/maps/api/geocode/json?${geocodeParams}`)
+      if (geocodeStatus !== 200) throw new Error(`Reverse Geocoding 请求失败: ${geocodeStatus}`)
       if (geocodeData.status !== 'OK') throw new Error(`Reverse Geocoding 错误: ${geocodeData.status}`)
 
       const firstResult = geocodeData.results?.[0]
@@ -88,24 +87,21 @@ export function registerSearchTools(server: McpServer) {
           language: 'zh-CN',
           fields: 'name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,price_level,opening_hours,types',
         })
-        const detailsRes = await fetch(`${baseUrl}/maps/api/place/details/json?${detailsParams}`)
-        if (detailsRes.ok) {
-          const detailsData = await detailsRes.json()
-          if (detailsData.status === 'OK' && detailsData.result) {
-            const r = detailsData.result
-            details = {
-              name: r.name || details.name,
-              address: r.formatted_address || details.address,
-              placeId,
-              coordinates: { latitude, longitude },
-              phone: r.formatted_phone_number,
-              website: r.website,
-              rating: r.rating,
-              userRatingsTotal: r.user_ratings_total,
-              priceLevel: r.price_level,
-              openingHours: r.opening_hours,
-              types: r.types,
-            }
+        const { status: detailsStatus, data: detailsData } = await googleJsonRequest.getJsonWithProxy<any>(`${baseUrl}/maps/api/place/details/json?${detailsParams}`)
+        if (detailsStatus === 200 && detailsData.status === 'OK' && detailsData.result) {
+          const r = detailsData.result
+          details = {
+            name: r.name || details.name,
+            address: r.formatted_address || details.address,
+            placeId,
+            coordinates: { latitude, longitude },
+            phone: r.formatted_phone_number,
+            website: r.website,
+            rating: r.rating,
+            userRatingsTotal: r.user_ratings_total,
+            priceLevel: r.price_level,
+            openingHours: r.opening_hours,
+            types: r.types,
           }
         }
       }
@@ -142,10 +138,8 @@ export function registerSearchTools(server: McpServer) {
         key: apiKey,
       })
 
-      const res = await fetch(`${baseUrl}/maps/api/directions/json?${params}`)
-      if (!res.ok) throw new Error(`Directions API 请求失败: ${res.status}`)
-
-      const data = await res.json()
+      const { status: directionsStatus, data } = await googleJsonRequest.getJsonWithProxy<any>(`${baseUrl}/maps/api/directions/json?${params}`)
+      if (directionsStatus !== 200) throw new Error(`Directions API 请求失败: ${directionsStatus}`)
       if (data.status !== 'OK') throw new Error(`Directions API 错误: ${data.status}`)
 
       const route = data.routes?.[0]
